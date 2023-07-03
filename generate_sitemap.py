@@ -14,10 +14,15 @@ def crawl(url):
     for a_tag in soup.find_all('a'):
         href = a_tag.get('href')
         if href and not href.startswith('#'):
+            if href.startswith('//'):
+                href = 'http:' + href  # or 'https:' depending on your website
+            if not (href.startswith('http://') or href.startswith('https://')):
+                continue  # Ignore non-http/https URLs
             full_url = urljoin(url, href)
             if full_url not in visited:
                 yield full_url
                 yield from crawl(full_url)
+
 
 def build_sitemap(start_url):
     urlset = E.urlset()
