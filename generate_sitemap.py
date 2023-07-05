@@ -10,7 +10,7 @@ visited = set()
 def same_domain(url1, url2):
     return urlparse(url1).netloc == urlparse(url2).netloc
 
-def crawl(url, base_url):
+def crawl(url, base_url, sitemap_file):
     visited.add(url)
     print(f"Attempting to visit {url}")
     try:
@@ -32,25 +32,28 @@ def crawl(url, base_url):
                 if same_domain(full_url, base_url) and full_url not in visited:
                     print(f'Parsed URL: {full_url}')  # print parsed URL
                     yield full_url
-                    yield from crawl(full_url, base_url)
+                    yield from crawl(full_url, base_url, sitemap_file)
+                    # Write to sitemap file periodically
+                    sitemap_file.write(tostring(E.url(
+                        E.loc(full_url),
+                        E.lastmod('2023-07-03'),  # You should replace this with the actual last modification date
+                        E.changefreq('monthly'),  # Change this based on how frequently the URL is expected to update
+                        E.priority('0.5'),  # Change this based on the priority of the URL
+                    )) + b'\n')
     except Exception as e:
         print(f"An error occurred while parsing {url}. Exception: {e}")
         return
 
 def build_sitemap(start_url):
     print(f"Building sitemap for {start_url}")
-    urlset = E.urlset()
-    for url in crawl(start_url, start_url):
-        urlset.append(
-            E.url(
-                E.loc(url),
-                E.lastmod('2023-07-03'),  # You should replace this with the actual last modification date
-                E.changefreq('monthly'),  # Change this based on how frequently the URL is expected to update
-                E.priority('0.5'),  # Change this based on the priority of the URL
-            )
-        )
-        print(f"Added {url} to sitemap")
-    return tostring(urlset, pretty_print=True)
+    with open('sitemap.xml', 'wb') as f:
+        f.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
+        f.write(b'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
+        
+        for url in crawl(start_url, start_url, f):
+            print(f"Added {url} to sitemap")
+        
+        f.write(b'</urlset>')
 
 def main():
     parser = argparse.ArgumentParser(description='Generate a sitemap for a website.')
@@ -59,11 +62,7 @@ def main():
 
     print(f"Starting sitemap generation for {args.start_url}")
     try:
-        sitemap = build_sitemap(args.start_url)
-
-        with open('sitemap.xml', 'wb') as f:
-            f.write(sitemap)
-
+        build_sitemap(args.start_url)
         print("Finished sitemap generation")
     except Exception as e:
         print(f"An error occurred during sitemap generation. Exception: {e}")
